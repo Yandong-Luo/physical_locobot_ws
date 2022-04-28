@@ -1,0 +1,190 @@
+<launch>
+    <arg name="robot_name"                        default="locobot"/>
+    <arg name="robot_model_1"                     default="locobot_base"/>
+    <arg name="robot_model_2"                     default="locobot_px100"/>
+    <arg name="robot_model_3"                     default="locobot_wx200"/>
+    <arg name="robot_model_4"                     default="locobot_wx250s"/>
+    <arg name="robot_model"                       default="$(arg robot_model_4)"/>
+    <arg name="robot_name_1"                      default="locobot_1"/>
+    <arg name="robot_name_2"                      default="locobot_2"/>
+    <arg name="robot_name_3"                      default="locobot_3"/>
+    <arg name="robot_name_4"                      default="locobot_4"/>
+    <arg name="show_lidar"                        default="true"/>
+    <arg name="show_gripper_bar"                  default="true"/>
+    <arg name="show_gripper_fingers"              default="true"/>
+    <arg name="external_urdf_loc"                 default=""/>
+    <arg name="use_rviz"                          default="true"/>
+    <arg name="rviz_frame"                        default="$(arg robot_name)/base_footprint"/>
+    <arg name="rvizconfig"                        default="$(find controller)/rviz/xslocobot_description.rviz"/>
+    <arg name="use_base"                          default="false"/>
+    <arg name="use_dock"                          default="false"/>
+    <arg name="load_configs"                      default="true"/>
+    <arg name="use_camera"                        default="false"/>
+
+    <arg name="dof"                               default="6"/>
+    <arg name="external_srdf_loc"                 default=""/>
+    <arg name="use_fake"                          default="false"/>
+    <arg name="use_actual"                        default="true"/>
+    <arg name="camera_tilt_angle"                 default="0.3"/>
+
+    <!-- cartographer slam parameters-->
+    <arg name="configuration_basename" default="hybird_slam_2d_gazebo.lua"/>
+    <arg name="remap_map_topic" default="false" />
+    <arg name="remap_map_topic_name" default="/cmap" />
+
+    <param name="$(arg robot_name)/use_base"      value="$(arg use_base)"/>
+    <arg name="xs_sdk_type" value="xs_sdk"/>
+    <arg name="motor_configs"                     default="$(find interbotix_xslocobot_control)/config/$(arg robot_model_4).yaml"/>
+    <arg name="mode_configs" default="$(find interbotix_xslocobot_control)/config/modes_all.yaml"/>
+    <!-- <arg name="mode_configs"                      default="$(find interbotix_xslocobot_ros_control)/config/modes.yaml"/> -->
+
+    <include file="$(find interbotix_xslocobot_descriptions)/launch/xslocobot_description.launch">
+        <arg name="robot_model"                       value="$(arg robot_model)"/>
+        <arg name="robot_name"                        value="$(arg robot_name)"/>
+        <arg name="show_lidar"                        value="$(arg show_lidar)"/>
+        <arg name="show_gripper_bar"                  value="$(arg show_gripper_bar)"/>
+        <arg name="show_gripper_fingers"              value="$(arg show_gripper_fingers)"/>
+        <arg name="external_urdf_loc"                 value="$(arg external_urdf_loc)"/>
+        <arg name="use_rviz"                          value="false"/>
+        <arg name="rviz_frame"                        value="$(arg rviz_frame)"/>
+        <arg name="use_joint_pub"                     value="false"/>
+        <arg name="rate"                              value="100"/>
+        <arg name="source_list"                       value="[dynamixel/joint_states, mobile_base/joint_states]"/>
+    </include>
+
+    <!-- open the rplidar -->
+    <include file="$(find rplidar_ros)/launch/rplidar.launch" >
+        <arg name="frame_id" value="locobot/laser_frame_link"/>
+    </include>
+
+    <!--Because of the laser direction is not the same as base_footprint. So I adjust it. 
+        And I also set the position of base_footprint and laser_frame_link is the same in here.
+        But it should different-->
+    <node pkg="tf" type="static_transform_publisher" name="basefootprint_to_laser_frame"
+        args="0.0 0.0 0.0 0.0 3.1415926 0.0 /locobot/base_footprint /locobot/laser_frame_link 40"/>
+
+    
+    <!-- keyboard controller node -->
+    <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop" output="screen">
+        <remap from="cmd_vel" to="locobot/mobile_base/commands/velocity"/>
+    </node>
+
+    <!-- Launch cartographer SLAM -->
+    <include file="$(find controller)/launch/cartographer_slam_gazebo.launch">
+        <arg name="configuration_basename" value="$(arg configuration_basename)"/>
+        <arg name="remap_map_topic" value="$(arg remap_map_topic)"/>
+        <arg name="remap_map_topic_name" value="$(arg remap_map_topic_name)" />
+    </include>
+
+    <node
+        name="xs_sdk"
+        pkg="interbotix_xs_sdk"
+        type="$(arg xs_sdk_type)"
+        output="screen"
+        ns="$(arg robot_name)">
+        <param name="motor_configs"                   value="$(arg motor_configs)"/>
+        <param name="mode_configs"                    value="$(arg mode_configs)"/>
+        <param name="load_configs"                    value="$(arg load_configs)"/>
+    </node>
+
+    <!-- Launch ros control -->
+    <!-- <node
+    name="controller_spawner"
+    pkg="controller_manager"
+    type="controller_manager"
+    respawn="false"
+    output="screen"
+    ns="$(arg robot_name)"
+    args="spawn arm_controller gripper_controller"/> -->
+
+    <!-- <node
+      name="xs_hardware_interface"
+      pkg="interbotix_xs_ros_control"
+      type="xs_hardware_interface"
+      output="screen"
+      ns="$(arg robot_name)">
+    </node> -->
+
+
+    <!-- Launch base manager -->
+    <group if="$(arg use_base)" ns="$(arg robot_name)">
+    <node
+      name="mobile_base_nodelet_manager"
+      pkg="nodelet"
+      type="nodelet"
+      args="manager"/>
+
+    <node
+      name="mobile_base"
+      pkg="nodelet"
+      type="nodelet"
+      args="load kobuki_node/KobukiNodelet mobile_base_nodelet_manager">
+      <rosparam command="load"                      file="$(find kobuki_node)/param/base.yaml"/>
+      <param name="odom_frame"                      value="$(arg robot_name)/odom"/>
+      <param name="base_frame"                      value="$(arg robot_name)/base_footprint"/>
+      <param name="cmd_vel_timeout"                 value="2.0"/>
+      <param name="acceleration_limiter"            value="true"/>
+    </node>
+
+    <node
+      name="diagnostic_aggregator"
+      pkg="diagnostic_aggregator"
+      type="aggregator_node">
+      <rosparam command="load"                      file="$(find kobuki_node)/param/diagnostics.yaml" />
+    </node>
+
+    <node if="$(arg use_dock)"
+      pkg="nodelet" 
+      type="nodelet" 
+      name="dock_drive" 
+      args="load kobuki_auto_docking/AutoDockingNodelet mobile_base_nodelet_manager">
+      <rosparam command="load"                      file="$(find kobuki_auto_docking)/param/auto_docking.yaml" />
+      <remap from="dock_drive/odom"                 to="mobile_base/odom" />
+      <remap from="dock_drive/core"                 to="mobile_base/sensors/core" />
+      <remap from="dock_drive/dock_ir"              to="mobile_base/sensors/dock_ir" />
+      <remap from="dock_drive/motor_power"          to="mobile_base/commands/motor_power" />
+      <remap from="dock_drive/velocity"             to="mobile_base/commands/velocity" />
+    </node>
+  </group>
+
+  <!-- Launch move group -->
+  <include file="$(find interbotix_xslocobot_moveit)/launch/move_group.launch" ns="$(arg robot_name)">
+        <arg name="robot_model"                       value="$(arg robot_model_4)"/>
+        <arg name="robot_name"                        value="$(arg robot_name)"/>
+        <arg name="show_lidar"                        value="$(arg show_lidar)"/>
+        <arg name="external_srdf_loc"                 value="$(arg external_srdf_loc)"/>
+        <arg name="dof"                               value="$(arg dof)"/>
+        <arg name="use_camera"                        value="$(arg use_camera)"/>
+        <arg name="fake_execution"                    value="$(arg use_fake)"/>
+        <arg name="publish_monitored_planning_scene"  value="true" />
+  </include>
+
+  <!-- Launch controller service -->
+  <node
+      name="interbotix_controller_service_node"      pkg="interbotix_controller_service"      type="interbotix_controller_service_node"
+      respawn="false"
+      output="screen"
+      ns="$(arg robot_name)"/>
+
+  <!-- Launch controller -->
+  <!-- <node name="controller_node" pkg="controller" type="controller_node" output="screen">
+        <param name="pan_angle"  value="30.0"/>
+  </node> -->
+
+  <node
+    pkg="rostopic"
+    type="rostopic"
+    name="camera_tilt"
+    args="pub -1 commands/joint_single interbotix_xs_msgs/JointSingleCommand --latch '{name: 'gripper', cmd: -250.0}'"
+    ns="$(arg robot_name)">
+  </node>
+
+  <node if="$(arg use_rviz)"    name="rviz"     pkg="rviz"    type="rviz"
+        args="-f $(arg rviz_frame) -d $(arg rvizconfig)"
+        ns="$(arg robot_name)">
+    <remap from="/clicked_point" to="clicked_point"/>
+    <remap from="/initialpose" to="initialpose"/>
+    <remap from="/move_base_simple/goal" to="move_base_simple/goal"/>
+  </node>
+
+</launch>
