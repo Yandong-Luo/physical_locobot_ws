@@ -1,0 +1,83 @@
+<launch>
+    <arg name="robot_name"                        default="locobot"/>
+    <arg name="robot_model_1"                     default="locobot_base"/>
+    <arg name="robot_model_2"                     default="locobot_px100"/>
+    <arg name="robot_model_3"                     default="locobot_wx200"/>
+    <arg name="robot_model_4"                     default="locobot_wx250s"/>
+    <arg name="robot_model"                       default="$(arg robot_model_4)"/>
+    <arg name="dof"                               default="6"/>
+    <arg name="use_actual"                        default="true"/>
+    <arg name="use_camera"                        default="true"/>
+    <arg name="mode_configs"                      default="/home/locobot/interbotix_ws/src/interbotix_ros_rovers/interbotix_ros_xslocobots/interbotix_xslocobot_moveit/config/modes_all.yaml"/>
+    <arg name="use_rviz"                          default="true"/>
+    <arg name="rvizconfig"                        default="$(find controller)/rviz/xslocobot.rviz"/>
+    <arg name="rviz_frame"                        default="$(arg robot_name)/base_footprint"/>
+
+    <!-- camera param -->
+    <arg name="filters"                           default=""/>
+    <arg name="align_depth"                       default="true"/>
+
+    <!-- mobile base param -->
+    <arg name="use_base"                          default="false"/>
+
+    <!-- cartographer slam parameters-->
+    <arg name="configuration_basename" default="hybird_slam_2d_gazebo.lua"/>
+    <arg name="remap_map_topic" default="false" />
+    <arg name="remap_map_topic_name" default="/cmap" />
+
+    <include file="$(find interbotix_xslocobot_moveit)/launch/xslocobot_moveit.launch">
+        <arg name="robot_model"                       value="$(arg robot_model)"/>
+        <arg name="robot_name"                        value="$(arg robot_name)"/>
+        <arg name="use_actual"                        value="$(arg use_actual)"/>
+        <arg name="dof"                               value="$(arg dof)"/>
+        <arg name="mode_configs"                      value="$(arg mode_configs)"/>
+        <arg name="use_moveit_rviz"                   value="false"/>
+        <arg name="use_base"                          value="$(arg use_base)"/>
+    </include>
+
+    <!-- open the rplidar -->
+    <include file="$(find rplidar_ros)/launch/rplidar.launch" >
+        <arg name="frame_id"                          value="locobot/laser_frame_link"/>
+        <arg name="serial_port"                       value="/dev/ttyUSB0"/>
+    </include>
+
+    <!--Because of the laser direction is not the same as base_footprint. So I adjust it. 
+        And I also set the position of base_footprint and laser_frame_link is the same in here.
+        But it should different-->
+    <node pkg="tf" type="static_transform_publisher" name="basefootprint_to_laser_frame"
+        args="0.0 0.0 0.0 0.0 3.1415926 0.0 /locobot/base_footprint /locobot/laser_frame_link 40"/>
+
+    
+    <!-- keyboard controller node -->
+    <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop" output="screen">
+        <remap from="cmd_vel" to="locobot/mobile_base/commands/velocity"/>
+    </node>
+
+    <!-- Launch cartographer SLAM -->
+    <include file="$(find controller)/launch/cartographer_slam_gazebo.launch">
+        <arg name="configuration_basename" value="$(arg configuration_basename)"/>
+        <arg name="remap_map_topic" value="$(arg remap_map_topic)"/>
+        <arg name="remap_map_topic_name" value="$(arg remap_map_topic_name)" />
+    </include>
+
+    <!-- Launch realsense camera -->
+    <include if="$(arg use_camera)" file="$(find realsense2_camera)/launch/rs_aligned_depth.launch" ns="$(arg robot_name)">
+        <arg name="tf_prefix"		                      value="$(arg robot_name)/camera"/>
+    </include>
+
+    <!-- Launch tennis ball dettector -->
+    <node pkg="tennis_ball_distance_calculator" type="tennis_distance_calculator.py" name="tennis_detector" output="screen" ns="$(arg robot_name)"/>
+
+    <!-- Launch controller service -->
+    <node
+      name="interbotix_controller_service_node"      pkg="interbotix_controller_service"      type="interbotix_controller_service_node"
+      respawn="false"
+      output="screen"
+      ns="$(arg robot_name)"/>
+
+    
+    <node if="$(arg use_rviz)"    name="rviz"     pkg="rviz"    type="rviz"
+        args="-f $(arg rviz_frame) -d $(arg rvizconfig)"
+        ns="$(arg robot_name)">
+  </node>
+</launch>
