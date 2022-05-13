@@ -28,7 +28,7 @@ We mapped some areas of the laboratory, and the effects are as follows. The cont
 
 #### Navigation
 
-https://youtu.be/KaYOJJXQ2rY
+[![navigation](https://res.cloudinary.com/marcomontalbano/image/upload/v1652278800/video_to_markdown/images/youtube--KaYOJJXQ2rY-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/KaYOJJXQ2rY "navigation")
 
 #### CV
 
