@@ -24,7 +24,7 @@ Code for the simulation: https://github.com/Yandong-Luo/hybrid
 
 We mapped some areas of the laboratory, and the effects are as follows. The content about this part can be found at this link: https://youtu.be/Ln7m51FUzJE
 
-![slam](./image/slam.png)
+[![slam](https://res.cloudinary.com/marcomontalbano/image/upload/v1652278742/video_to_markdown/images/youtube--Ln7m51FUzJE-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/Ln7m51FUzJE "slam")
 
 #### Navigation
 
