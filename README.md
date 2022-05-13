@@ -40,4 +40,4 @@ I trained the recognition of tennis balls based on the cascade classifier, and c
 
 The robot first recognizes the tennis ball through the camera and calculates its distance, and converts it into the coordinate system of the robotic arm, so that the robotic arm can accurately grasp the tennis ball. Unfortunately, the surface of the gripper is too slippery and its size is too small compared to the tennis ball, so the robotic arm cannot grasp the tennis ball smoothly. But simply by redesigning the grips, the tennis ball can be successfully picked up.
 
-https://youtu.be/uDCOP5xmYVI
+[![pick_up](https://res.cloudinary.com/marcomontalbano/image/upload/v1652278902/video_to_markdown/images/youtube--uDCOP5xmYVI-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/uDCOP5xmYVI "pick_up")
