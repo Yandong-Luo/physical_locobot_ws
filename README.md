@@ -1,9 +1,5 @@
 ### Introduction
 
-Robotic project: A robot that autonomously picks up tennis balls. Northeastern University
-
-This is the final project of CS5335 Robotics System and Science.
-
 In this project, we aim to design a robot with SLAM, navigation, visual computing, robotic arm grasping functions to help us pick up tennis balls automatically.
 
 In this project, we develop in simulation and physical robot respectively.
